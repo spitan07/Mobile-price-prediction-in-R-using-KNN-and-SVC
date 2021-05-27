@@ -1,0 +1,267 @@
+```{r}
+
+'
+MOBILE PRICE CLASSIFICATION
+
+
+Dataset as 21 features and 2000 entries. The meanings of the features are given below.
+
+battery_power: Total energy a battery can store in one time measured in mAh
+blue: Has bluetooth or not
+clock_speed: speed at which microprocessor executes instructions
+dual_sim: Has dual sim support or not
+fc: Front Camera mega pixels
+four_g: Has 4G or not
+int_memory: Internal Memory in Gigabytes
+m_dep: Mobile Depth in cm
+mobile_wt: Weight of mobile phone
+n_cores: Number of cores of processor
+pc: Primary Camera mega pixels
+px_height: Pixel Resolution Height
+px_width: Pixel Resolution Width
+ram: Random Access Memory in Mega Byte
+sc_h: Screen Height of mobile in cm
+sc_w: Screen Width of mobile in cm
+talk_time: longest time that a single battery charge will last when you are
+three_g: Has 3G or not
+touch_screen: Has touch screen or not
+wifi: Has wifi or not
+price_range: This is the target variable with value of 0(low cost), 1(medium cost), 2(high cost) and 3(very high cost).
+'
+```
+
+```{r}
+
+library(class)
+library(dplyr)
+library(gridExtra)
+library(ggplot2)
+library(ggcorrplot)
+library(scales)
+library(caret)
+library(e1071)
+library(corrplot)
+
+```
+
+```{r}
+df <-read.csv('D:/R/train.CSV',header = TRUE)
+head(df)
+
+```
+```{r}
+
+```
+
+
+```{r}
+summary(df)
+```
+
+
+```{r}
+str(df) # structure of a data
+```
+
+
+```{r}
+# Checking for the unique values
+unique(df$price_range)
+```
+
+
+```{r}
+sum(is.na(df)) # sum of missings values in dataset 
+
+```
+
+
+```{r}
+# There are no missing value
+
+#correlation
+
+a <-cor(df)
+corrplot(a, method="color")
+```
+
+```{r}
+# converting numeric data to factor
+df$price_range <- as.factor(df$price_range)
+df$dual_sim <- as.factor(df$dual_sim)
+df$four_g <- as.factor(df$four_g)
+df$blue <- as.factor(df$blue)
+df$touch_screen <- as.factor(df$touch_screen)
+```
+
+
+```{r}
+# BOXPLOT
+p1<-ggplot(df, aes(x=price_range, y = battery_power, color=price_range)) +
+  geom_boxplot() +
+  labs(title = "Battery Power vs Price Range")
+p2<- ggplot(df, aes(x=price_range, y = ram, color=price_range)) +
+  geom_boxplot() +
+  labs(title = "RAM vs Price Range")
+grid.arrange(p1,p2,nrow=1)
+
+```
+```{r}
+# DISTRIBUTION OF CAMERA QUALITY
+data = data.frame(MegaPixels = c(df$fc, df$pc), 
+               Camera = rep(c("Front Camera", "Primary Camera"), 
+                            c(length(df$fc), length(df$pc))))
+ggplot(data, aes(MegaPixels, fill = Camera)) + 
+  geom_bar(position = 'identity', alpha = .5)
+```
+
+```{r}
+p1 <- ggplot(df, aes(x=dual_sim, fill=dual_sim)) +
+  theme_bw() +
+  geom_bar() +
+  ylim(0, 1250) +
+  labs(title = "Dual Sim") +
+  scale_x_discrete(labels = c('Not Supported','Supported'))
+p2 <- ggplot(df, aes(x=four_g, fill=four_g)) +
+  theme_bw() +
+  geom_bar() +
+  ylim(0, 1250) +
+  labs(title = "4 G") +
+  scale_x_discrete(labels = c('Not Supported','Supported'))
+
+grid.arrange(p1, p2, nrow = 1)
+```
+
+
+```{r}
+p3 <- ggplot(df, aes(x=blue, fill=blue)) +
+  theme_bw() +
+  geom_bar() +
+  ylim(0, 1250) +
+  labs(title = "Bluetooth") +
+  scale_x_discrete(labels = c('Not Supported','Supported'))
+p4 <- ggplot(df, aes(x=touch_screen, fill=touch_screen)) +
+  theme_bw() +
+  geom_bar() +
+  ylim(0, 1250) +
+  labs(title = "touch screen") +
+  scale_x_discrete(labels = c('Not Supported','Supported'))
+grid.arrange(p3,p4 ,nrow=1)
+```
+
+```{r}
+df$blue <- as.numeric(df$blue)
+df$dual_sim <- as.numeric(df$dual_sim)
+df$four_g <- as.numeric(df$four_g)
+df$touch_screen <-as.numeric(df$touch_screen)
+df$price_range <- as.numeric(df$price_range)
+
+```
+
+
+```{r}
+#          MODEL BUILDING
+
+## 75% of the sample size
+smp_size <- floor(0.75 * nrow(df))
+
+# set the seed to make our partition reproducible
+set.seed(123)
+train_ind <- sample(seq_len(nrow(df)), size = smp_size)
+
+train <- df[train_ind, ]
+test <- df[-train_ind, ]
+
+x_train <- subset(train, select = -price_range)
+y_train <- train$price_range
+x_test <- subset(test, select = -price_range)
+y_test <- test$price_range
+
+
+```
+
+
+```{r}
+# SVC 
+```
+
+```{r}
+model <- svm(x_train,y_train, type = 'C-classification', 
+             kernel = 'linear') 
+
+print(model)
+summary(model)
+
+```
+
+```{r}
+# testing our model
+pred <- predict(model, x_test)
+
+pred <- as.factor(pred)
+
+```
+
+
+```{r}
+y_test <- as.factor(y_test)
+confusionMatrix(y_test,pred)
+
+```
+```{r}
+# ACCURACY OF MODEL FOR SVC IS 96.6 %
+
+```
+
+
+```{r}
+#KNN CLASSIFIER
+
+```
+
+
+
+```{r}
+train_scale <- scale(train[, 1:20])
+test_scale <- scale(test[, 1:20])
+
+
+```
+
+
+```{r}
+#fitting 
+classifier_knn <- knn(train = train_scale,
+                      test = test_scale,
+                      cl = train$price_range, #cl arguement
+                      k = 1)
+
+  
+# Confusion Matrix
+cm <- table(test$price_range, classifier_knn)
+cm
+```
+
+
+```{r}
+#MODEL EVALUATION AND CALCULATING SAMPLE ERROR
+# K = 45
+classifier_knn <- knn(train = train_scale,
+                      test = test_scale,
+                      cl = train$price_range,
+                      k = 45)
+misClassError <- mean(classifier_knn != test$price_range)
+(paste('Accuracy =', 1-misClassError))
+  
+```
+
+
+```{r}
+#
+```
+
+
+
+```{r}
+```
+
